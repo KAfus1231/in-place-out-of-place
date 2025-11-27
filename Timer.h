@@ -15,7 +15,12 @@ public:
 	void start();
 	void stop();
 
+	int elepsed() const;
+	int isRunning() const;
+	void reset();
+
 private:
 	std::atomic<bool> running{ false };
 	std::atomic<int> seconds{ 0 };
+	std::thread worker;
 };

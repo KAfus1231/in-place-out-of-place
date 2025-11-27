@@ -4,40 +4,31 @@
 
 VOID ShowBalloon(LPCWSTR title, LPCWSTR msg)
 {
-	NOTIFYICONDATA nid = {};
+	NOTIFYICONDATAW nid = {};
 	nid.cbSize = sizeof(nid);
 	nid.hWnd = GetConsoleWindow();
 	nid.uID = 1;
 	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
 	nid.uCallbackMessage = WM_USER + 1;
-	nid.hIcon = LoadIcon(NULL, IDI_INFORMATION);
+	nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 	lstrcpy(nid.szTip, L"IN PLACE");
-	lstrcpy(nid.szInfo, msg);
-	lstrcpy(nid.szInfoTitle, title);
-	nid.dwInfoFlags = NIIF_INFO;
 
-	NOTIFYICONDATA localNid = nid;
+	Shell_NotifyIconW(NIM_ADD, &nid);
+	nid.uVersion = NOTIFYICON_VERSION_4;
+	Shell_NotifyIconW(NIM_SETVERSION, &nid);
 
-	std::thread([localNid]() mutable
-	{
-		Shell_NotifyIcon(NIM_ADD, &localNid);
-		Sleep(3000);
-		Shell_NotifyIcon(NIM_DELETE, &localNid);
-	}).detach();
-}
+	NOTIFYICONDATAW modify = nid;
+	modify.uFlags = NIF_INFO;
+	modify.dwInfoFlags = NIIF_INFO;
+	lstrcpy(modify.szInfoTitle, title);
+	lstrcpy(modify.szInfo, msg);
 
-std::atomic<int> runTime{ 0 };
-void timer()
-{
-	std::thread([]()
+	Shell_NotifyIconW(NIM_MODIFY, &modify);
+
+	std::thread([nid]() mutable
 		{
-			while (true)
-			{
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-				runTime++;
-				std::cout << RED << runTime.load() << STANDART << std::endl;
-			}
-
+			std::this_thread::sleep_for(std::chrono::seconds(3));
+			Shell_NotifyIconW(NIM_DELETE, &nid);
 		}).detach();
 }
 
@@ -178,37 +169,98 @@ void Camera::drawBoxes(cv::Mat& img)
 	}
 }
 
-bool Camera::inPlaceOrNot(cv::Mat& img)
+bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer)
 {
-	if (!indices.empty())
-	{
-		for (int idx : indices)
-		{
-			auto& d = detections[idx];
+	bool personDetected = !indices.empty();
+	bool inPlace = true;
 
-			if (d.distance.square < DISTANCE_THRESHOLD)
-			{
-				if (!timerIsWorking)
-				{
-					timerIsWorking = true;
-					timer();
-					std::cout << "Person not in place!" << std::endl;
-				}
-				/*ShowBalloon(L"IN PLACE", L"Person not in place!");*/
-				return false;
-			}
-			else
-			{
-				/*ShowBalloon(L"IN PLACE", L"Person in place.");*/
-				timerIsWorking = false;
-				return true;
-			}
-		}
+	if (personDetected)
+	{
+		auto& d = detections[indices[0]];
+		inPlace = (d.distance.square >= DISTANCE_THRESHOLD);
 	}
 	else
 	{
-		std::cout << RED << "No persons detected." << STANDART << std::endl;
+		std::cout << RED << "No person detected." << STANDART << std::endl;
+		inPlace = false;
 	}
+
+	if (inPlace)
+	{
+		consecutiveInPlace++;
+		consecutiveNotInPlace = 0;
+	}
+	else
+	{
+		consecutiveNotInPlace++;
+		consecutiveInPlace = 0;
+	}
+
+	bool stableInPlace = (consecutiveInPlace >= framesForTrigger);
+	bool stableNotInPlace = (consecutiveNotInPlace >= framesForTrigger);
+
+	auto now = std::chrono::steady_clock::now();
+
+	switch (placeStatus)
+	{
+		case PlaceStatus::IN_PLACE:
+		{
+			if (!timer.isRunning()) timer.start();
+
+			if (stableNotInPlace)
+			{
+				placeStatus = PlaceStatus::LEFT_THE_PLACE;
+				warningStartTime = now;
+				warningShown = false;
+				std::cout << RED << "LEFT THE PLACE: WARNING STARTED" << STANDART << std::endl;
+			}
+			break;
+		}
+		case PlaceStatus::LEFT_THE_PLACE:
+		{
+			if (stableInPlace)
+			{
+				placeStatus = PlaceStatus::IN_PLACE;
+				break;
+			}
+
+			if (!warningShown)
+			{
+				ShowBalloon(L"Warning", L"You have left the designated area. Please return.");
+				warningShown = true;
+			}
+
+			auto elepsed = std::chrono::duration_cast<std::chrono::seconds>(now - warningStartTime);
+
+			if (elepsed > warningDuration)
+			{
+				placeStatus = PlaceStatus::OUT_OF_PLACE;
+				int focusSeconds = timer.elepsed();
+
+				{
+					std::wstringstream ss;
+					ss << L"Focus session length: " << focusSeconds << L" s";
+					ShowBalloon(L"Focus ended", ss.str().c_str());
+				}
+
+				timer.reset();
+			}
+			break;
+		}
+		case PlaceStatus::OUT_OF_PLACE:
+		{
+			if (stableInPlace)
+			{
+				placeStatus = PlaceStatus::IN_PLACE;
+				timer.reset();
+				warningShown = false;
+				ShowBalloon(L"Welcome back", L"You are back in the designated area.");
+			}
+			break;
+		}
+	}
+
+	return (placeStatus == PlaceStatus::IN_PLACE);
 }
 
 Camera::~Camera()
