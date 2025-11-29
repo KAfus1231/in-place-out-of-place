@@ -16,12 +16,12 @@
 #include <chrono>
 #include <atomic>
 #include <shellapi.h>
+#include <filesystem>
 
 #define PATH_TO_MODEL "assets/models/yolov8n.onnx"
 
 #define IMG_WIDTH 1930
 #define IMG_HEIGHT 1020
-#define DISTANCE_THRESHOLD 9
 
 #define GREEN "\033[32m"
 #define RED "\033[31m"

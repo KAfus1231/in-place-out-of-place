@@ -8,6 +8,7 @@ int main()
 
 	Camera camera;
 	Timer timer;
+	Player player;
 	cv::Mat test = cv::imread("assets/test/2.jpg");
 
 	cv::VideoCapture cap(0);
@@ -22,7 +23,7 @@ int main()
 
 		camera.preparingModel(frame);
 		camera.drawBoxes(frame);
-		camera.inPlaceOrNot(frame, timer);
+		camera.inPlaceOrNot(frame, timer, player);
 
 		cv::resize(frame, frame, cv::Size(640, 500));
 

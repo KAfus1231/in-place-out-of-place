@@ -1,6 +1,11 @@
 #pragma once
 #include "includes.h"
 #include "Timer.h"
+#include "Player.h"
+
+#define SQUARE_DISTANCE_THRESHOLD 9
+#define WIDTH_DISTANCE_THRESHOLD 30
+#define HEIGHT_DISTANCE_THRESHOLD 27
 
 struct Detection
 {
@@ -12,6 +17,13 @@ struct Detection
 		int square;
 		int width;
 		int height;
+
+		bool isInPlace() const
+		{
+			return (square >= SQUARE_DISTANCE_THRESHOLD &&
+				width >= WIDTH_DISTANCE_THRESHOLD &&
+				height >= HEIGHT_DISTANCE_THRESHOLD);
+		}
 	} distance;
 
 	cv::Rect box;
@@ -32,13 +44,15 @@ public:
 
 	void preparingModel(cv::Mat& img);
 	void drawBoxes(cv::Mat& img);
-	bool inPlaceOrNot(cv::Mat& img, Timer& timer);
+	bool inPlaceOrNot(cv::Mat& img, Timer& timer, Player& player);
+
 
 private:
 	PlaceStatus placeStatus = PlaceStatus::IN_PLACE;
 
 	bool cudaAvailable = true;
 	bool warningShown = false;
+	bool alarmPlaying = false;
 
 	cv::dnn::Net net;
 	std::vector<Detection> detections;
@@ -49,7 +63,8 @@ private:
 	const float confThreshold = 0.7f, nmsThreshold = 0.5f;
 
 	std::chrono::steady_clock::time_point warningStartTime;
-	std::chrono::seconds warningDuration = std::chrono::seconds(4);
+	std::chrono::seconds warningDurationFirst = std::chrono::seconds(1);
+	std::chrono::seconds warningDurationSecond = std::chrono::seconds(5);
 
 	// ‘»À‹“– ÿ”ÃŒ¬
 	int framesForTrigger = 3;

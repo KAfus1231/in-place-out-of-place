@@ -27,7 +27,7 @@ VOID ShowBalloon(LPCWSTR title, LPCWSTR msg)
 
 	std::thread([nid]() mutable
 		{
-			std::this_thread::sleep_for(std::chrono::seconds(3));
+			std::this_thread::sleep_for(std::chrono::seconds(2));
 			Shell_NotifyIconW(NIM_DELETE, &nid);
 		}).detach();
 }
@@ -97,7 +97,7 @@ void Camera::preparingModel(cv::Mat& img)
 		int height = int(h * img.rows);
 		int square = int(width * height) / 10000;
 
-		detections.push_back({ classIdPoint.x, conf, {square, width / 100, height / 100}, cv::Rect(left, top, width, height)});
+		detections.push_back({ classIdPoint.x, conf, {square, width / 10, height / 10}, cv::Rect(left, top, width, height)});
 	}
 }
 
@@ -160,16 +160,24 @@ void Camera::drawBoxes(cv::Mat& img)
 			1);
 		cv::putText(img,
 			cv::format("Height: %d", d.distance.height),
-			cv::Point(d.box.x + 270, d.box.y - 10),
+			cv::Point(d.box.x + 290, d.box.y - 10),
 			cv::FONT_HERSHEY_SIMPLEX,
 			0.5,
 			cv::Scalar(255, 0, 0),
 			1);
-		cv::rectangle(img, d.box, cv::Scalar(0, 0, 255), 2);
+		cv::rectangle(img, d.box,
+			[=]() {
+				switch (placeStatus)
+				{
+				case PlaceStatus::IN_PLACE:		  return cv::Scalar(0, 255, 0);
+				case PlaceStatus::LEFT_THE_PLACE: return cv::Scalar(0, 255, 255);
+				case PlaceStatus::OUT_OF_PLACE:	  return cv::Scalar(0, 0, 255);
+				}
+			}(), 2);
 	}
 }
 
-bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer)
+bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer, Player& player)
 {
 	bool personDetected = !indices.empty();
 	bool inPlace = true;
@@ -177,12 +185,11 @@ bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer)
 	if (personDetected)
 	{
 		auto& d = detections[indices[0]];
-		inPlace = (d.distance.square >= DISTANCE_THRESHOLD);
+		inPlace = d.distance.isInPlace();
 	}
 	else
 	{
-		std::cout << RED << "No person detected." << STANDART << std::endl;
-		inPlace = false;
+		inPlace = false; 
 	}
 
 	if (inPlace)
@@ -198,6 +205,17 @@ bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer)
 
 	bool stableInPlace = (consecutiveInPlace >= framesForTrigger);
 	bool stableNotInPlace = (consecutiveNotInPlace >= framesForTrigger);
+
+	if (stableNotInPlace)
+	{
+		cv::putText(img,
+			"NO PERSON DETECTED",
+			cv::Point(10, 30),
+			cv::FONT_HERSHEY_SIMPLEX,
+			1.0,
+			cv::Scalar(0, 0, 255),
+			2);
+	}
 
 	auto now = std::chrono::steady_clock::now();
 
@@ -221,18 +239,26 @@ bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer)
 			if (stableInPlace)
 			{
 				placeStatus = PlaceStatus::IN_PLACE;
+				player.stop();
+				alarmPlaying = false;
 				break;
 			}
 
-			if (!warningShown)
+			if (!alarmPlaying)
+			{
+				player.play();
+				alarmPlaying = true;
+			}
+
+			auto elepsed = std::chrono::duration_cast<std::chrono::seconds>(now - warningStartTime);
+
+			if (elepsed > warningDurationFirst && elepsed <= warningDurationSecond && !warningShown)
 			{
 				ShowBalloon(L"Warning", L"You have left the designated area. Please return.");
 				warningShown = true;
 			}
 
-			auto elepsed = std::chrono::duration_cast<std::chrono::seconds>(now - warningStartTime);
-
-			if (elepsed > warningDuration)
+			if (elepsed > warningDurationSecond)
 			{
 				placeStatus = PlaceStatus::OUT_OF_PLACE;
 				int focusSeconds = timer.elepsed();
@@ -249,11 +275,17 @@ bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer)
 		}
 		case PlaceStatus::OUT_OF_PLACE:
 		{
+			if (alarmPlaying)
+			{
+				player.stop();
+				alarmPlaying = false;
+			}
+			
 			if (stableInPlace)
 			{
 				placeStatus = PlaceStatus::IN_PLACE;
+				timer.stop();
 				timer.reset();
-				warningShown = false;
 				ShowBalloon(L"Welcome back", L"You are back in the designated area.");
 			}
 			break;
