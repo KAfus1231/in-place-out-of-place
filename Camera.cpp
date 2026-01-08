@@ -190,6 +190,13 @@ bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer, Player& player)
 	else
 	{
 		inPlace = false; 
+		cv::putText(img,
+			"NO PERSON DETECTED",
+			cv::Point(10, 30),
+			cv::FONT_HERSHEY_SIMPLEX,
+			1.0,
+			cv::Scalar(0, 0, 255),
+			2);
 	}
 
 	if (inPlace)
@@ -205,17 +212,6 @@ bool Camera::inPlaceOrNot(cv::Mat& img, Timer& timer, Player& player)
 
 	bool stableInPlace = (consecutiveInPlace >= framesForTrigger);
 	bool stableNotInPlace = (consecutiveNotInPlace >= framesForTrigger);
-
-	if (stableNotInPlace)
-	{
-		cv::putText(img,
-			"NO PERSON DETECTED",
-			cv::Point(10, 30),
-			cv::FONT_HERSHEY_SIMPLEX,
-			1.0,
-			cv::Scalar(0, 0, 255),
-			2);
-	}
 
 	auto now = std::chrono::steady_clock::now();
 
