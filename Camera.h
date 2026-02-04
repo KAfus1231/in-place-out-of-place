@@ -39,26 +39,36 @@ enum class PlaceStatus
 class Camera
 {
 public:
-	Camera();
-	~Camera();
+	explicit Camera(std::filesystem::path p);
+	~Camera() = default;
 
-	void preparingModel(cv::Mat& img);
+	void preparingModel(const cv::Mat& img);
 	void drawBoxes(cv::Mat& img);
-	bool inPlaceOrNot(cv::Mat& img, Timer& timer, Player& player);
+	bool inPlaceOrNot(cv::Mat& img);
 
-
-private:
 	PlaceStatus placeStatus = PlaceStatus::IN_PLACE;
+private:
+	std::unique_ptr<Player> player_;
+	Timer timer_;
+
+	std::filesystem::path path_;
 
 	bool cudaAvailable = true;
 	bool warningShown = false;
 	bool alarmPlaying = false;
 
 	cv::dnn::Net net;
-	std::vector<Detection> detections;
-	std::vector<int> indices;
 
-	int personClassId = 0;
+	cv::Mat imgBGR_, imgResized_;
+	cv::Mat blob_;
+
+	std::vector<Detection> detections_;
+	std::vector<int> indices_;
+
+	std::vector<cv::Rect> boxes_;
+	std::vector<float> confidences_;
+
+	const int personClassId = 0;
 	const int inpW = 640, inpH = 640;
 	const float confThreshold = 0.7f, nmsThreshold = 0.5f;
 
@@ -67,7 +77,7 @@ private:
 	std::chrono::seconds warningDurationSecond = std::chrono::seconds(5);
 
 	// ‘»À‹“– ÿ”ÃŒ¬
-	int framesForTrigger = 3;
+	const int framesForTrigger = 3;
 	int consecutiveNotInPlace = 0;
 	int consecutiveInPlace = 0;
 };
