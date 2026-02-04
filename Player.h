@@ -6,9 +6,11 @@ class Player
 {
 public:
 	Player();
-	~Player() noexcept;
+	~Player();
 
-	void play() noexcept;
+	void play();
+	void stop();
+
 private:
-	const std::filesystem::path soundToPlay_ = L"A:\\CPP_projects\\CPP\\in place out of place\\assets\\sounds\\socialCreditSiren.mp3";
+	const std::wstring soundToPlay = L"A:\\CPP_projects\\CPP\\in place out of place\\assets\\sounds\\socialCreditSiren.mp3";
 };

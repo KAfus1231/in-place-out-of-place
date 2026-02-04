@@ -1,26 +1,14 @@
 #include "includes.h"
 #include "Camera.h"
 
-/*
-	---наъгюрекэмн днаюбхрэ boost::program_options---
-
-	---сапюрэ бяе люцхвеяйхе вхякю х уюпдйнд---
-	---днаюбхрэ PADDED RESIZE letterbox_image б CAMERA---
-	----оепедекюрэ лмнцнонрнвмнярэ он ярюмдюпрс C++20--
-	---днаюбхрэ CONST цде щрн слеярмн---
-	---гюлемхрэ дкхммше рхош дюммшу мю USING, еякх нмх вюярн онбрнпъчряъ---
-	---днаюбхрэ дкъ йнмярпсйрнпнб я ндмхл оюпюлерпнл EXPLICIT---
-
-
-	---йнмжеожхъ RAII---
-*/
 
 int main()
 {
 	setlocale(LC_ALL, "Russian");
-	std::filesystem::path path = "assets/models/yolov8n.onnx";
 
-	Camera camera(path);
+	Camera camera;
+	Timer timer;
+	Player player;
 	cv::Mat test = cv::imread("assets/test/2.jpg");
 
 	cv::VideoCapture cap(0);
@@ -35,7 +23,7 @@ int main()
 
 		camera.preparingModel(frame);
 		camera.drawBoxes(frame);
-		camera.inPlaceOrNot(frame);
+		camera.inPlaceOrNot(frame, timer, player);
 
 		cv::resize(frame, frame, cv::Size(640, 500));
 
