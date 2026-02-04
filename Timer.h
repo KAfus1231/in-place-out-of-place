@@ -5,8 +5,7 @@ class Timer
 {
 public:
 	Timer() = default;
-	
-	// гюопер йнохпнбюмхъ онрнйнб
+
 	Timer(const Timer&) = delete;
 	Timer& operator=(const Timer&) = delete;
 
