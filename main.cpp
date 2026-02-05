@@ -1,14 +1,12 @@
 #include "includes.h"
 #include "Camera.h"
 
-
 int main()
 {
 	setlocale(LC_ALL, "Russian");
+	std::filesystem::path path = "assets/models/yolov8n.onnx";
 
-	Camera camera;
-	Timer timer;
-	Player player;
+	Camera camera(path);
 	cv::Mat test = cv::imread("assets/test/2.jpg");
 
 	cv::VideoCapture cap(0);
@@ -23,7 +21,7 @@ int main()
 
 		camera.preparingModel(frame);
 		camera.drawBoxes(frame);
-		camera.inPlaceOrNot(frame, timer, player);
+		camera.inPlaceOrNot(frame);
 
 		cv::resize(frame, frame, cv::Size(640, 500));
 
