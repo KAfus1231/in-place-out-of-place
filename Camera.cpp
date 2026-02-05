@@ -246,15 +246,15 @@ bool Camera::inPlaceOrNot(cv::Mat& img)
 				alarmPlaying = true;
 			}
 
-			auto elepsed = std::chrono::duration_cast<std::chrono::seconds>(now - warningStartTime);
+			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - warningStartTime);
 
-			if (elepsed > warningDurationFirst && elepsed <= warningDurationSecond && !warningShown)
+			if (elapsed > warningDurationFirst && elapsed <= warningDurationSecond && !warningShown)
 			{
 				ShowBalloon(L"Warning", L"You have left the designated area. Please return.");
 				warningShown = true;
 			}
 
-			if (elepsed > warningDurationSecond)
+			if (elapsed > warningDurationSecond)
 			{
 				placeStatus = PlaceStatus::OUT_OF_PLACE;
 				int focusSeconds = timer_.elepsed();
@@ -289,10 +289,5 @@ bool Camera::inPlaceOrNot(cv::Mat& img)
 	}
 
 	return (placeStatus == PlaceStatus::IN_PLACE);
-}
-
-Camera::~Camera()
-{
-
 }
 
